@@ -71,6 +71,7 @@ def test_connection(target_ip,target_port):
 
     k.close()
 
+
 def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
     #spike and fuzz modes
 
@@ -82,13 +83,8 @@ def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
     else:
         mult = 1
 
-
     #the smaller the step, the higher is accuracy
     buffer = suffix + prefill
-    suf_size = len(suffix)
-
-
-
 
     while (True and  (mode != "inject" )):
         try:
