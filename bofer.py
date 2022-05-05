@@ -159,16 +159,18 @@ def main():
     useBadChars = args.useBadChars
     shellcode = bytearray.fromhex(args.ShellCode)
 
-
-    test_connection(target_ip,target_port)
-
     prefill = b'A' * prefill_num + prefill_hex
 
+    if mode == "spike" or mode == "fuzz":
 
-    if mode != "inject":
+        test_connection(target_ip,target_port)
         spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step)
+
     elif mode == "inject":
+
+        test_connection(target_ip,target_port)
         inject_mode(target_ip, target_port, BadChars, suffix, prefill, shellcode, useBadChars)
+
     else:
         print(f"Uknown mode: {mode} ... exiting")
         print("Try entering: spike, fuzz, inject")
