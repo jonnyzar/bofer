@@ -1,0 +1,4 @@
+1. Set working folder for mona:
+
+!mona config -set workingfolder c:\mona\%p
+

