@@ -78,7 +78,7 @@ def test_connection(target_ip, target_port):
     k.close()
 
 
-def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
+def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix):
     # spike and fuzz modes
 
     # standard step size for fuzz
@@ -103,7 +103,7 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
                 s.connect((target_ip, target_port))
 
                 # send information as bytes
-                s.sendall(payload + bytes("\n\r", "latin-1"))
+                s.sendall(payload + postfix)
                 #s.send(bytes(buffer, "latin-1"))
 
                 sleep(1)
@@ -191,7 +191,7 @@ def main():
     if mode == "spike" or mode == "fuzz":
 
         #test_connection(target_ip, target_port)
-        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step)
+        spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix)
 
     elif mode == "inject":
 
